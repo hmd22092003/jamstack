@@ -889,6 +889,8 @@ document.addEventListener("DOMContentLoaded", function () {
   });
   
 
+  
+
   document.addEventListener("DOMContentLoaded", function () {
     // Lấy các phần tử cần thiết
     const descriptionButtonRW = document.querySelector('a[href="/mota-writers-reader.html"]');
