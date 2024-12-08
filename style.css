@@ -4,32 +4,31 @@ body {
   text-align: center;
 }
 .legend-container {
-  position: absolute; /* Đặt bảng ở vị trí tuyệt đối */
-  top: 200px; /* Khoảng cách từ cạnh trên */
-  left: 0; /* Sát cạnh trái màn hình */
-  margin: 0; /* Loại bỏ bất kỳ margin nào */
+  position: absolute; /* Vị trí cố định trong phần trang */
+  left: 0; /* Sát mép trái màn hình */
+  z-index: 1000; /* Hiển thị trên các phần tử khác */
+  margin: 0; /* Loại bỏ khoảng cách thừa */
 }
+
 
 .small-table {
   font-size: 14px; /* Giảm kích thước chữ */
-  width: 200px; /* Đặt chiều rộng cố định cho bảng */
+  width: 100px; /* Đặt chiều rộng cố định */
 }
 
 .small-table th,
 .small-table td {
-  padding: 4px 8px; /* Giảm padding để bảng nhỏ gọn hơn */
+  padding: 4px 8px; /* Căn chỉnh padding */
 }
+
 
 @media screen and (max-width: 576px) {
   .small-table {
-    font-size: 12px; /* Nhỏ hơn trên màn hình nhỏ */
-    width: 150px; /* Co bảng nhỏ lại trên màn hình nhỏ */
-  }
-
-  .legend-container {
-    top: 10px; /* Điều chỉnh vị trí trên màn hình nhỏ */
+    font-size: 12px; /* Điều chỉnh trên màn hình nhỏ */
+    width: 150px; /* Thu nhỏ bảng */
   }
 }
+
 
 
 
