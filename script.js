@@ -14,10 +14,6 @@ let buffer = [];
 let bufferMaxSize = 10; 
 let producerConsumerRunning = true;
 // Hàm để hiển thị kết quả
-function displayResult(message) {
-    contentBox.innerHTML += message + "<br>";
-    contentBox.scrollTop = contentBox.scrollHeight; // Cuộn xuống cùng
-}
 function displayResult(message, isReader = false, isWriter = false) {
     const messageDiv = document.createElement('div');
     messageDiv.innerHTML = message;
@@ -29,8 +25,9 @@ function displayResult(message, isReader = false, isWriter = false) {
     }
 
     contentBox.appendChild(messageDiv);
-    contentBox.scrollTop = contentBox.scrollHeight;  // Cuộn xuống cùng
+    contentBox.scrollTop = contentBox.scrollHeight;  
 }
+
 // Hàm tạm dừng (sleep)
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -86,26 +83,20 @@ class Monitor {
 const diningTable = document.getElementById('diningTable'); // Khu vực hiển thị bàn ăn
 // Tạo giao diện bàn ăn với triết gia và đũa
 function createPhilosophersUI(numPhilosophers) {
-    const diningTable = document.getElementById('diningTable');
-    diningTable.innerHTML = ""; // Reset bàn ăn
+    diningTable.innerHTML = ""; 
     philosophers = [];
     const angleStep = 360 / numPhilosophers;
 
     for (let i = 0; i < numPhilosophers; i++) {
-        // Tạo phần tử triết gia
         const philosopher = document.createElement('div');
         philosopher.className = 'philosopher thinking';
         philosopher.textContent = `P${i + 1}`;
         philosopher.style.transform = `rotate(${angleStep * i}deg) translate(120px) rotate(-${angleStep * i}deg)`;
         diningTable.appendChild(philosopher);
-
-        // Tạo phần tử hiển thị số đũa
         const chopsticksIndicator = document.createElement('div');
         chopsticksIndicator.className = 'chopsticks-indicator';
         chopsticksIndicator.textContent = '🍴'; // Hiển thị 1 đũa mặc định
         philosopher.appendChild(chopsticksIndicator);
-
-        // Lưu triết gia và chỉ báo đũa
         philosophers.push({ element: philosopher, indicator: chopsticksIndicator });
     }
 }
@@ -118,167 +109,214 @@ function updatePhilosopherState(id, state) {
 function updateChopstickCount(id, count) {
     const indicator = philosophers[id].indicator;
     if (count === 2) {
-        indicator.textContent = '🍴🍴'; // Hiển thị 2 đũa
+        indicator.textContent = '🍴🍴'; 
     } else if (count === 1) {
-        indicator.textContent = '🍴'; // Hiển thị 1 đũa
+        indicator.textContent = '🍴'; 
     } else {
-        indicator.textContent = '💤'; // Không có đũa
+        indicator.textContent = '💤'; 
     }
 }
 // Hàm cho Semaphore (Triết gia)
 async function semaphorePhilosophers() {
-    const semaphore = new Semaphore(numPhilosophers - 1); // Chỉ có thể có n-1 triết gia ngồi cùng lúc
-    const chopsticks = new Array(numPhilosophers).fill(false);
+    const semaphore = new Semaphore(numPhilosophers - 1); // Giới hạn số triết gia ăn đồng thời
+    const chopsticks = new Array(numPhilosophers).fill(false); // Trạng thái của từng đũa (false = chưa được dùng)
 
     async function philosopher(id) {
         let eats = 0;
 
         while (eats < maxEats) {
-            updatePhilosopherState(id, 'thinking'); // Đang suy nghĩ
-            updateChopstickCount(id, 0); // Không có đũa
+            // Triết gia đang suy nghĩ
+            updatePhilosopherState(id, 'thinking');
+            updateChopstickCount(id, 0); // Không có đũa khi suy nghĩ
             displayResult(`Triết gia ${id + 1}: đang suy nghĩ...`);
-            await sleep(5000);
+            await sleep(7000); // Thời gian suy nghĩ
 
-            await semaphore.wait(); // Chờ đến lượt
+            // Chờ quyền ăn (tối đa n-1 triết gia ăn cùng lúc)
+            await semaphore.wait();
 
             let left = id;
             let right = (id + 1) % numPhilosophers;
 
+            // Đổi thứ tự lấy đũa cho triết gia cuối cùng
             if (id === numPhilosophers - 1) {
-                [left, right] = [right, left]; // Đổi thứ tự lấy đũa
+                [left, right] = [right, left];
             }
 
-            if (!chopsticks[left] && !chopsticks[right]) {
-                chopsticks[left] = chopsticks[right] = true;
-                updateChopstickCount(id, 2); // Có 2 đũa
-                updatePhilosopherState(id, 'eating'); // Đang ăn
-                displayResult(`Triết gia ${id + 1}: đang ăn...`);
-                await sleep(5000);
+            // Cầm đũa bên trái trước
+            if (!chopsticks[left]) {
+                chopsticks[left] = true;
+                updateChopstickCount(id, 1); // Đang cầm 1 đũa
+                displayResult(`Triết gia ${id + 1}: đã cầm đũa bên trái.`);
+                updatePhilosopherState(id, 'waiting'); // Đang chờ đũa bên phải
+                await sleep(1000); // Thời gian cầm đũa
+            }
 
+            // Kiểm tra cầm đũa bên phải nếu cầm được đũa bên trái
+            if (chopsticks[left] && !chopsticks[right]) {
+                chopsticks[right] = true;
+                updateChopstickCount(id, 2); // Đang cầm 2 đũa
+                displayResult(`Triết gia ${id + 1}: đã cầm đũa bên phải.`);
+                updatePhilosopherState(id, 'eating'); // Chuyển sang trạng thái ăn
+                displayResult(`Triết gia ${id + 1}: đang ăn...`);
+                await sleep(5000); // Thời gian ăn
+
+                // Trả lại cả hai đũa sau khi ăn
                 chopsticks[left] = chopsticks[right] = false;
-                updateChopstickCount(id, 1); // Trả đũa, còn 1 đũa
+                updateChopstickCount(id, 0); // Không cầm đũa nữa
                 eats++;
                 displayResult(`Triết gia ${id + 1}: đã ăn xong.`);
+            } else {
+                // Nếu không cầm đủ hai đũa, trả lại đũa bên trái
+                chopsticks[left] = false;
+                updateChopstickCount(id, 0); // Không cầm đũa nữa
+                displayResult(`Triết gia ${id + 1}: đã bỏ đũa bên trái vì không cầm được đũa phải.`);
             }
 
-            semaphore.signal(); // Giải phóng semaphore
+            // Trả quyền ăn cho triết gia khác
+            semaphore.signal();
         }
 
-        updatePhilosopherState(id, 'done'); // Kết thúc
-        updateChopstickCount(id, 0); // Không còn đũa
+        // Triết gia hoàn thành
+        updatePhilosopherState(id, 'done');
+        updateChopstickCount(id, 0);
         displayResult(`Triết gia ${id + 1}: hoàn thành.`);
     }
 
+    // Khởi tạo giao diện cho số triết gia
     createPhilosophersUI(numPhilosophers);
     const tasks = Array.from({ length: numPhilosophers }, (_, id) => philosopher(id));
-    await Promise.all(tasks);
+    await Promise.all(tasks); // Đợi tất cả triết gia hoàn thành
 }
+
 // Hàm cho Monitor (Triết gia)
 async function monitorPhilosophers() {
-    const chopsticks = new Array(numPhilosophers).fill(false); // Trạng thái của đũa
-    const monitor = new Monitor(); // Tạo đối tượng Monitor
+    const chopsticks = new Array(numPhilosophers).fill(false); // Trạng thái đũa (false = chưa được dùng)
+    const monitor = new Monitor(); // Tạo monitor để quản lý đồng bộ
 
     async function philosopher(id) {
         let eats = 0;
 
         while (eats < maxEats) {
-            updatePhilosopherState(id, 'thinking'); // Đang suy nghĩ
-            updateChopstickCount(id, 0); // Không có đũa
+            // Triết gia đang suy nghĩ
+            updatePhilosopherState(id, 'thinking');
+            updateChopstickCount(id, 0);
             displayResult(`Triết gia ${id + 1}: đang suy nghĩ...`);
             await sleep(3000); // Thời gian suy nghĩ
 
-            await monitor.enter(); // Đợi để vào monitor
+            await monitor.enter(); // Triết gia vào monitor để kiểm tra đũa
 
-            let left = id;
-            let right = (id + 1) % numPhilosophers;
+            // Xác định đũa trái và phải
+            const left = id;
+            const right = (id + 1) % numPhilosophers;
 
-            // Kiểm tra xem cả 2 chiếc đũa có sẵn không
+            // Kiểm tra nếu cả hai đũa chưa được cầm
             if (!chopsticks[left] && !chopsticks[right]) {
-                chopsticks[left] = chopsticks[right] = true;
-                updateChopstickCount(id, 2); // Có 2 đũa
-                updatePhilosopherState(id, 'eating'); // Đang ăn
-                displayResult(`Triết gia ${id + 1}: đang ăn...`);
-                await sleep(3000); // Thời gian ăn
+                // Cầm đũa trái trước
+                chopsticks[left] = true;
+                updateChopstickCount(id, 1); // Cầm 1 đũa (trái)
+                displayResult(`Triết gia ${id + 1}: đã cầm đũa bên trái.`);
 
-                chopsticks[left] = chopsticks[right] = false; // Trả lại đũa
-                updateChopstickCount(id, 1); // Trả đũa, còn 1 đũa
-                eats++;
-                displayResult(`Triết gia ${id + 1}: đã ăn xong.`);
+                // Cầm đũa phải nếu có thể
+                if (!chopsticks[right]) {
+                    chopsticks[right] = true; // Cầm đũa phải
+                    updateChopstickCount(id, 2); // Cầm 2 đũa
+                    updatePhilosopherState(id, 'eating'); // Đang ăn
+                    displayResult(`Triết gia ${id + 1}: đã cầm đũa bên phải, đang ăn...`);
+                    await sleep(3000); // Thời gian ăn
+
+                    // Trả lại đũa sau khi ăn
+                    chopsticks[left] = chopsticks[right] = false;
+                    updateChopstickCount(id, 0); // Không cầm đũa nữa
+                    eats++; // Tăng số lần ăn
+                    displayResult(`Triết gia ${id + 1}: đã ăn xong.`);
+                } else {
+                    // Nếu không cầm được đũa phải, bỏ đũa trái
+                    chopsticks[left] = false;
+                    updateChopstickCount(id, 0); // Không cầm đũa nữa
+                    displayResult(`Triết gia ${id + 1}: không cầm được đũa bên phải, bỏ đũa bên trái.`);
+                }
             }
 
-            monitor.leave(); // Thoát khỏi monitor
+            monitor.leave(); // Rời khỏi monitor để nhường cho triết gia khác
         }
 
-        updatePhilosopherState(id, 'done'); // Kết thúc
-        updateChopstickCount(id, 0); // Không còn đũa
+        // Triết gia hoàn thành
+        updatePhilosopherState(id, 'done');
+        updateChopstickCount(id, 0);
         displayResult(`Triết gia ${id + 1}: hoàn thành.`);
     }
 
-    createPhilosophersUI(numPhilosophers); // Tạo giao diện
-    const tasks = Array.from({ length: numPhilosophers }, (_, id) => philosopher(id)); // Mỗi triết gia là một task
-    await Promise.all(tasks); // Chạy tất cả triết gia đồng thời
+    // Tạo giao diện bàn ăn
+    createPhilosophersUI(numPhilosophers);
+
+    // Khởi chạy các triết gia đồng thời
+    const tasks = Array.from({ length: numPhilosophers }, (_, id) => philosopher(id));
+    await Promise.all(tasks); // Đợi tất cả triết gia hoàn thành
 }
+
+
 // Hàm để tạo Deadlock với Semaphore (Triết gia)
 async function semaphorePhilosophersDeadlock() {
-    const semaphore = new Semaphore(numPhilosophers - 1); // Chỉ có thể có n-1 triết gia ngồi cùng lúc
-    const chopsticks = new Array(numPhilosophers).fill(false);
+    const semaphore = new Semaphore(numPhilosophers - 1);  // Chỉ cho phép numPhilosophers - 1 triết gia vào cùng một lúc
+    const chopsticks = new Array(numPhilosophers).fill(false);  // Mảng lưu trạng thái đũa
 
     async function philosopher(id) {
         let eats = 0;
 
-        while (true) { // Lặp vô tận để mô phỏng deadlock
-            updatePhilosopherState(id, 'thinking'); // Đang suy nghĩ
-            updateChopstickCount(id, 0); // Không có đũa
+        while (true) { 
+            updatePhilosopherState(id, 'thinking');  // Triết gia đang suy nghĩ
+            updateChopstickCount(id, 0); 
             displayResult(`Triết gia ${id + 1}: đang suy nghĩ...`);
-            await sleep(5000); // Thời gian suy nghĩ
+            await sleep(5000);  // Thời gian suy nghĩ
+
+            // Triết gia xin phép vào (semaphore)
             updateChopstickCount(id, 1); 
-            await semaphore.wait(); // Chờ đến lượt
-            
+            await semaphore.wait();  // Chờ tới lượt vào
+
             let left = id;
             let right = (id + 1) % numPhilosophers;
 
-            // Đổi thứ tự lấy đũa để tránh deadlock
-            if (id % 2 === 0) { // Nếu số chẵn
-                [left, right] = [right, left]; // Đổi thứ tự lấy đũa
+            // Đảo thứ tự lấy đũa cho một số triết gia (để tạo deadlock)
+            if (id % 2 === 0) { 
+                [left, right] = [right, left];
             }
 
-            // Mỗi triết gia chỉ lấy một chiếc đũa và không bao giờ có được chiếc đũa thứ hai
+            // Triết gia lấy đũa bên trái nếu chưa có ai giữ
             if (!chopsticks[left]) {
                 chopsticks[left] = true;
-                updateChopstickCount(id, 1); // Đã lấy 1 chiếc đũa
+                updateChopstickCount(id, 1); 
                 displayResult(`Triết gia ${id + 1}: đang giữ một chiếc đũa bên trái.`);
-            } else {
-                // Nếu triết gia đã giữ chiếc đũa trái, thì chờ đũa bên phải mãi mà không có
-                displayResult(`Triết gia ${id + 1}: đang chờ đũa bên phải (deadlock)!`);
             }
 
-            // Nếu đã lấy được một chiếc đũa nhưng không có chiếc đũa bên phải
-            // Triết gia không thể ăn và bị kẹt trong deadlock
+            // Nếu không thể lấy đũa bên phải, tạo ra deadlock liên tục
             if (!chopsticks[right]) {
+                // Trường hợp deadlock khi không thể lấy đũa bên phải
                 displayResult(`Triết gia ${id + 1}: không thể ăn (deadlock) vì thiếu đũa bên phải.`);
-                // Triết gia không thể ăn, tiếp tục chờ trong trạng thái deadlock
-                continue; // Tiếp tục vòng lặp mà không trả đũa, giữ trong trạng thái deadlock
+                
+                // Tiếp tục giữ đũa bên trái và quay lại thử lại sau
+                await sleep(500);  // Thời gian chờ trước khi thử lại
+                continue;  // Tiếp tục vòng lặp mà không ăn
             }
 
-            // Cả 2 đũa có sẵn thì triết gia ăn
+            // Nếu có đủ đũa, triết gia ăn
             chopsticks[left] = chopsticks[right] = true;
-            updateChopstickCount(id, 2); // Có 2 đũa
-            updatePhilosopherState(id, 'eating'); // Đang ăn
+            updateChopstickCount(id, 2);  // Cập nhật số đũa đang giữ
+            updatePhilosopherState(id, 'eating');  // Triết gia đang ăn
             displayResult(`Triết gia ${id + 1}: đang ăn...`);
-            await sleep(5000); // Thời gian ăn
+            await sleep(5000);  // Thời gian ăn
 
-            // Trả đũa sau khi ăn
+            // Trả lại đũa sau khi ăn
             chopsticks[left] = chopsticks[right] = false;
-            updateChopstickCount(id, 1); // Trả lại 2 đũa
+            updateChopstickCount(id, 1); 
             eats++;
             displayResult(`Triết gia ${id + 1}: đã ăn xong.`);
 
-            semaphore.signal(); // Giải phóng semaphore
-            
+            // Kết thúc lượt ăn, giải phóng semaphore
+            semaphore.signal(); 
         }
 
-        updatePhilosopherState(id, 'done'); // Kết thúc
-        updateChopstickCount(id, 0); // Không còn đũa
+        updatePhilosopherState(id, 'done'); 
+        updateChopstickCount(id, 0); 
         displayResult(`Triết gia ${id + 1}: hoàn thành.`);
     }
 
@@ -286,7 +324,6 @@ async function semaphorePhilosophersDeadlock() {
     const tasks = Array.from({ length: numPhilosophers }, (_, id) => philosopher(id));
     await Promise.all(tasks);
 }
-
 
 // Producer-Consumer 278 -> 360
 // Producer-Consumer với Semaphore
@@ -450,189 +487,6 @@ if (deadlockButton) {
     });
 }
 
-// Reader-Writer 376 -> 513
-// async function semaphoreReaderWriter() {
-//     const mutex = new Semaphore(1); // Mutex for controlling reader_count
-//     const db = new Semaphore(1);    // Semaphore for controlling access to database
-//     let readerCount = 0;
-//     let activeWriters = 0;
-//     let waitingWriters = 0;
-//     let activeReaders = 0;
-
-//     function updateStatus() {
-//         displayResult(
-//             `Đang ghi: ${activeWriters}, Đợi ghi: ${waitingWriters}, Đang đọc: ${activeReaders}, Đợi đọc: ${readerCount - activeReaders}`,
-//             false,
-//             false
-//         );
-//     }
-
-//     async function reader(id) {
-//         for (let i = 0; i < 5; i++) {
-//             await mutex.wait();
-//             readerCount++;
-//             if (readerCount === 1) {
-//                 await db.wait();
-//             }
-//             activeReaders++;
-//             updateStatus();
-//             mutex.signal();
-
-//             // Đọc dữ liệu
-//             displayResult(`Reader ${id} đang đọc dữ liệu...`, true, false);
-//             await sleep(1000); // Giả lập thời gian đọc
-
-//             await mutex.wait();
-//             activeReaders--;
-//             readerCount--;
-//             if (readerCount === 0) {
-//                 db.signal();
-//             }
-//             updateStatus();
-//             mutex.signal();
-
-//             // Nghỉ đọc
-//             displayResult(`Reader ${id} không đọc nữa.`, true, false);
-//             await sleep(1000); // Nghỉ trước khi đọc tiếp
-//         }
-//     }
-
-//     async function writer(id) {
-//         for (let i = 0; i < 3; i++) {
-//             waitingWriters++;
-//             updateStatus();
-//             await db.wait();
-//             waitingWriters--;
-//             activeWriters++;
-//             updateStatus();
-
-//             // Ghi dữ liệu
-//             displayResult(`Writer ${id} đang ghi dữ liệu...`, false, true);
-//             await sleep(1000); // Giả lập thời gian ghi
-
-//             activeWriters--;
-//             updateStatus();
-//             db.signal();
-
-//             // Nghỉ ghi
-//             displayResult(`Writer ${id} không ghi nữa.`, false, true);
-//             await sleep(1000); // Nghỉ trước khi ghi tiếp
-//         }
-//     }
-
-//     const readerPromises = [];
-//     for (let i = 0; i < 3; i++) {
-//         readerPromises.push(reader(i));
-//     }
-
-//     const writerPromises = [];
-//     for (let i = 0; i < 2; i++) {
-//         writerPromises.push(writer(i));
-//     }
-
-//     await Promise.all([...readerPromises, ...writerPromises]);
-// }
-// async function monitorReaderWriter() {
-//     const monitor = new Monitor();
-//     let readerCount = 0; // Số lượng Reader đang hoạt động
-//     let waitingWriters = 0; // Số lượng Writer đang đợi
-//     let activeReaders = 0;
-//     let activeWriters = 0;
-
-//     function updateStatus() {
-//         displayResult(
-//             `Đang ghi: ${activeWriters}, Đọi ghi: ${waitingWriters}, Đang đọc: ${activeReaders}, Đợi đọc: ${readerCount - activeReaders}`,
-//             false,
-//             false
-//         );
-//     }
-
-//     async function startRead() {
-//         await monitor.enter();
-//         while (waitingWriters > 0) {
-//             await new Promise(resolve => monitor.queue.push(resolve));
-//         }
-//         readerCount++;
-//         activeReaders++;
-//         updateStatus();
-//         monitor.leave();
-//     }
-
-//     async function endRead() {
-//         await monitor.enter();
-//         activeReaders--;
-//         readerCount--;
-//         if (readerCount === 0 && monitor.queue.length > 0) {
-//             const resolve = monitor.queue.shift();
-//             resolve();
-//         }
-//         updateStatus();
-//         monitor.leave();
-//     }
-
-//     async function startWrite() {
-//         await monitor.enter();
-//         waitingWriters++;
-//         updateStatus();
-//         while (readerCount > 0) {
-//             await new Promise(resolve => monitor.queue.push(resolve));
-//         }
-//         waitingWriters--;
-//         activeWriters++;
-//         updateStatus();
-//         monitor.leave();
-//     }
-
-//     async function endWrite() {
-//         await monitor.enter();
-//         activeWriters--;
-//         if (monitor.queue.length > 0) {
-//             const resolve = monitor.queue.shift();
-//             resolve();
-//         }
-//         updateStatus();
-//         monitor.leave();
-//     }
-
-//     async function reader(id) {
-//         for (let i = 0; i < 5; i++) {
-//             await startRead();
-//             displayResult(`Reader ${id} đang đọc dữ liệu...`, true, false);
-//             await sleep(1000); // Giả lập thời gian đọc
-//             await endRead();
-
-//             // Nghỉ đọc
-//             displayResult(`Reader ${id} không đọc nữa.`, true, false);
-//             await sleep(1000); // Nghỉ trước khi đọc tiếp
-//         }
-//     }
-
-//     async function writer(id) {
-//         for (let i = 0; i < 3; i++) {
-//             displayResult(`Writer ${id} đang tạo dữ liệu...`, false, true);
-//             await sleep(1000); // Giả lập thời gian tạo dữ liệu
-//             await startWrite();
-//             displayResult(`Writer ${id} đang ghi dữ liệu...`, false, true);
-//             await sleep(1000); // Giả lập thời gian ghi
-//             await endWrite();
-
-//             // Nghỉ ghi
-//             displayResult(`Writer ${id} không ghi nữa.`, false, true);
-//             await sleep(1000); // Nghỉ trước khi ghi tiếp
-//         }
-//     }
-
-//     const readerPromises = [];
-//     const writerPromises = [];
-//     for (let i = 0; i < 3; i++) {
-//         readerPromises.push(reader(i));
-//     }
-//     for (let i = 0; i < 2; i++) {
-//         writerPromises.push(writer(i));
-//     }
-
-//     await Promise.all([...readerPromises, ...writerPromises]);
-// }
 async function semaphoreReaderWriter() {
     const mutex = new Semaphore(1); // Bảo vệ biến `readerCount`
     const db = new Semaphore(1);    // Quản lý truy cập vào cơ sở dữ liệu
@@ -815,6 +669,59 @@ async function monitorReaderWriter() {
 
     // Chờ tất cả Readers và Writers hoàn thành
     await Promise.all([...readerPromises, ...writerPromises]);
+}
+async function semaphoreDeadlockReaderWriter() {
+    const mutex = new Semaphore(1); // Bảo vệ biến readerCount
+    const db = new Semaphore(1);    // Quản lý truy cập vào cơ sở dữ liệu
+    let readerCount = 0;
+    let activeWriters = 0;
+    let activeReaders = 0;
+
+    // Cập nhật trạng thái hiển thị
+    function updateStatus() {
+        displayResult(
+            `Đang ghi: ${activeWriters}, Đang đọc: ${activeReaders}, Chờ readerCount: ${readerCount}`,
+            false,
+            false
+        );
+    }
+
+    // Hàm Reader cố ý gây deadlock
+    async function deadlockReader(id) {
+        await mutex.wait(); // Reader khóa mutex
+        readerCount++;      // Tăng số lượng readers
+        if (readerCount === 1) {
+            await db.wait(); // Chặn writers
+        }
+        activeReaders++;
+        updateStatus();
+        // Không bao giờ giải phóng mutex để gây deadlock
+    }
+
+    // Hàm Writer cố ý bị kẹt do Reader không giải phóng
+    async function deadlockWriter(id) {
+        await db.wait(); // Writer cố gắng truy cập nhưng bị kẹt
+        activeWriters++;
+        updateStatus();
+
+        // Không bao giờ giải phóng db để minh họa trạng thái kẹt
+    }
+
+    // Tạo 1 Reader và 1 Writer
+    const readerPromise = deadlockReader(1);
+    const writerPromise = deadlockWriter(1);
+
+    // Chờ chúng chạy mãi mãi (hoặc gây deadlock)
+    await Promise.race([readerPromise, writerPromise]);
+}
+
+// Gọi hàm tạo deadlock
+const deadlockReaderWriterButton = document.getElementById('deadlockReaderWriterButton');
+if (deadlockReaderWriterButton) {
+    deadlockReaderWriterButton.addEventListener('click', async () => {
+        contentBox.innerHTML = ""; // Xóa nội dung trước khi chạy
+        await semaphoreDeadlockReaderWriter(); // Chạy deadlock cho Producer-Consumer
+    });
 }
 
 

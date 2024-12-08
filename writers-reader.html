@@ -31,13 +31,13 @@
         <ul class="navbar-nav ms-auto">
      
           <li class="nav-item">
-            <a class="nav-link" href="/trietgia.html">Philosopher</a>
+            <a class="nav-link" href="../trietgia.html">Philosopher</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="/writers-reader.html">Writers-Reader</a>
+            <a class="nav-link" href="../writers-reader.html">Writers-Reader</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="/producer-consumer.html">Producer-Consumer</a>
+            <a class="nav-link" href="../producer-consumer.html">Producer-Consumer</a>
           </li>
         </ul>
       </div>
@@ -68,6 +68,11 @@
               <i class="fas fa-play"></i> Run
             </button>
           </div>
+          <div class="col-4 d-flex justify-content-center">
+            <button id="deadlockReaderWriterButton" class="btn btn-danger btn-lg">
+              <i class="fas fa-exclamation-triangle"></i> Deadlock
+            </button>
+          </div>
           <div class="col-4 d-flex justify-content-end">
             <select id="optionSelect" class="form-select form-select-lg">
               <option value="Reader-Writer - Semaphore">Semaphore</option>
@@ -77,9 +82,9 @@
         </div>
 
         <!-- Input Box for Custom Problem -->
-        <div class="mb-3">
-          <label for="numPhilosophers" class="form-label" style="margin-left: -500px;">Nhập số giới hạn</label>
-          <input type="number" id="numPhilosophers" class="form-control" value="5" min="1">
+        <div class="mb-3" >
+          <label for="numPhilosophers" class="form-label" style="margin-left: -500px;" hidden>Nhập số giới hạn</label>
+          <input type="number" id="numPhilosophers" class="form-control" value="5" min="1" hidden>
         </div>
 
         <!-- Row 2: Display Box -->
