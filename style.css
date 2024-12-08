@@ -3,6 +3,33 @@ body {
   font-family: 'Arial', sans-serif;
   text-align: center;
 }
+.legend-container {
+  position: absolute; /* Đặt bảng ở vị trí tuyệt đối */
+  top: 200px; /* Khoảng cách từ cạnh trên */
+  left: 0; /* Sát cạnh trái màn hình */
+  margin: 0; /* Loại bỏ bất kỳ margin nào */
+}
+
+.small-table {
+  font-size: 14px; /* Giảm kích thước chữ */
+  width: 200px; /* Đặt chiều rộng cố định cho bảng */
+}
+
+.small-table th,
+.small-table td {
+  padding: 4px 8px; /* Giảm padding để bảng nhỏ gọn hơn */
+}
+
+@media screen and (max-width: 576px) {
+  .small-table {
+    font-size: 12px; /* Nhỏ hơn trên màn hình nhỏ */
+    width: 150px; /* Co bảng nhỏ lại trên màn hình nhỏ */
+  }
+
+  .legend-container {
+    top: 10px; /* Điều chỉnh vị trí trên màn hình nhỏ */
+  }
+}
 
 
 
