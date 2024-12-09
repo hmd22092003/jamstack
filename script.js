@@ -79,6 +79,7 @@ class Monitor {
     }
 }
 
+
 // Triết gia 73 -> 275
 const diningTable = document.getElementById('diningTable'); // Khu vực hiển thị bàn ăn
 // Tạo giao diện bàn ăn với triết gia và đũa
@@ -568,108 +569,106 @@ async function semaphoreReaderWriter() {
     // Chờ tất cả Readers và Writers hoàn thành
     await Promise.all([...readerPromises, ...writerPromises]);
 }
+
 async function monitorReaderWriter() {
     const monitor = new Monitor();
-    let readerCount = 0;
-    let waitingWriters = 0;
     let activeReaders = 0;
     let activeWriters = 0;
+    let waitingWriters = 0;
 
-    // Cập nhật trạng thái hiển thị
     function updateStatus() {
         displayResult(
-            `Đang ghi: ${activeWriters}, Đợi ghi: ${waitingWriters}, Đang đọc: ${activeReaders}, Đợi đọc: ${readerCount - activeReaders}`,
+            `Đang ghi: ${activeWriters}, Đợi ghi: ${waitingWriters}, Đang đọc: ${activeReaders}, Đợi đọc: 0`,
             false,
             false
         );
     }
 
-    // Reader bắt đầu đọc
-    async function startRead() {
-        await monitor.enter();
-        while (waitingWriters > 0 || activeWriters > 0) {
-            await new Promise(resolve => monitor.queue.push(resolve)); // Chờ Writer xong
-        }
-        readerCount++;
-        activeReaders++;
-        updateStatus();
-        monitor.leave();
-    }
-
-    // Reader kết thúc đọc
-    async function endRead() {
+    async function endRead(id) {
         await monitor.enter();
         activeReaders--;
-        readerCount--;
-        if (readerCount === 0 && monitor.queue.length > 0) {
-            const resolve = monitor.queue.shift(); // Đánh thức Writer
-            resolve();
+        displayResult(`Reader ${id} đã ngừng đọc.`, true, false);
+
+        if (activeReaders === 0 && waitingWriters > 0) {
+            monitor.leave(); // Cho phép writer tiếp theo
+        } else {
+            monitor.leave();
         }
         updateStatus();
-        monitor.leave();
     }
 
-    // Writer bắt đầu ghi
-    async function startWrite() {
-        await monitor.enter();
-        waitingWriters++;
-        updateStatus();
-        while (readerCount > 0 || activeWriters > 0) {
-            await new Promise(resolve => monitor.queue.push(resolve)); // Chờ Reader xong
-        }
-        waitingWriters--;
-        activeWriters++;
-        updateStatus();
-        monitor.leave();
-    }
-
-    // Writer kết thúc ghi
-    async function endWrite() {
+    async function endWrite(id) {
         await monitor.enter();
         activeWriters--;
-        if (monitor.queue.length > 0) {
-            const resolve = monitor.queue.shift(); // Đánh thức các Reader hoặc Writer tiếp theo
-            resolve();
+        displayResult(`Writer ${id} đã ngừng ghi.`, false, true);
+
+        if (waitingWriters > 0) {
+            monitor.leave(); // Cho phép writer tiếp theo
+        } else {
+            monitor.leave();
         }
+        updateStatus();
+    }
+
+    async function startRead(id) {
+        await monitor.enter();
+
+        while (activeWriters > 0 || waitingWriters > 0) {
+            monitor.leave();
+            await new Promise(resolve => setTimeout(resolve, 10));
+            await monitor.enter();
+        }
+
+        activeReaders++;
+        displayResult(`Reader ${id} đang đọc dữ liệu...`, true, false);
         updateStatus();
         monitor.leave();
     }
 
-    // Hàm mô phỏng Reader
+    async function startWrite(id) {
+        await monitor.enter();
+        waitingWriters++;
+
+        while (activeWriters > 0 || activeReaders > 0) {
+            monitor.leave();
+            await new Promise(resolve => setTimeout(resolve, 10));
+            await monitor.enter();
+        }
+
+        waitingWriters--;
+        activeWriters++;
+        displayResult(`Writer ${id} đang ghi dữ liệu...`, false, true);
+        updateStatus();
+        monitor.leave();
+    }
+
     async function reader(id) {
         for (let i = 0; i < 5; i++) {
-            await startRead();
-            displayResult(`Reader ${id} đang đọc dữ liệu...`, true, false);
+            await startRead(id);
             await sleep(1000); // Đọc dữ liệu
-            await endRead();
-
-            displayResult(`Reader ${id} đã ngừng đọc.`, true, false);
+            await endRead(id);
             await sleep(1000); // Nghỉ ngơi
         }
     }
 
-    // Hàm mô phỏng Writer
     async function writer(id) {
         for (let i = 0; i < 3; i++) {
-            displayResult(`Writer ${id} đang tạo dữ liệu...`, false, true);
             await sleep(1000); // Tạo dữ liệu
-            await startWrite();
-            displayResult(`Writer ${id} đang ghi dữ liệu...`, false, true);
+            await startWrite(id);
             await sleep(1000); // Ghi dữ liệu
-            await endWrite();
-
-            displayResult(`Writer ${id} đã ngừng ghi.`, false, true);
+            await endWrite(id);
             await sleep(1000); // Nghỉ ngơi
         }
     }
 
-    // Tạo các Readers và Writers
     const readerPromises = Array.from({ length: 3 }, (_, i) => reader(i));
     const writerPromises = Array.from({ length: 2 }, (_, i) => writer(i));
 
-    // Chờ tất cả Readers và Writers hoàn thành
     await Promise.all([...readerPromises, ...writerPromises]);
 }
+
+
+
 async function semaphoreDeadlockReaderWriter() {
     const mutex = new Semaphore(1); // Bảo vệ biến readerCount
     const db = new Semaphore(1);    // Quản lý truy cập vào cơ sở dữ liệu
